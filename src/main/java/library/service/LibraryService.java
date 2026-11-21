@@ -26,6 +26,13 @@ public class LibraryService {
     private final Map<String, Book> books = new LinkedHashMap<>();
 
     /**
+     * Creates an empty library with no books.
+     */
+    public LibraryService() {
+        // The books map is created in its field declaration.
+    }
+
+    /**
      * Adds a new book after validating the input.
      *
      * <p>Leading and trailing spaces are removed from every field. The new

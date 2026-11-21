@@ -17,6 +17,14 @@ import library.ui.MainView;
 public class Main extends Application {
 
     /**
+     * Creates the application object. JavaFX calls this constructor itself
+     * when {@link #main(String[])} runs.
+     */
+    public Main() {
+        super();
+    }
+
+    /**
      * Builds and shows the main window. Called by the JavaFX runtime.
      *
      * @param stage the primary window provided by JavaFX
