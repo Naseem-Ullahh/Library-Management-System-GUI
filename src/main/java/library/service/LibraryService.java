@@ -4,6 +4,7 @@ import library.exception.BookNotFoundException;
 import library.exception.DuplicateBookException;
 import library.exception.ValidationException;
 import library.model.Book;
+import library.model.BookStatus;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -87,6 +88,64 @@ public class LibraryService {
         if (book == null) {
             throw new BookNotFoundException(cleanId);
         }
+        return book;
+    }
+
+    /**
+     * Changes the title and author of an existing book.
+     *
+     * <p>All input is validated before anything is changed, so a failed
+     * update never leaves a book half-modified. The ID and the status are not
+     * changed by this method.</p>
+     *
+     * @param id        the ID of the book to update
+     * @param newTitle  the new title
+     * @param newAuthor the new author
+     * @return the updated book
+     * @throws ValidationException   if the ID, title or author is empty
+     * @throws BookNotFoundException if no book has this ID
+     */
+    public Book updateBook(String id, String newTitle, String newAuthor)
+            throws ValidationException, BookNotFoundException {
+        String cleanTitle = requireText(newTitle, "Title");
+        String cleanAuthor = requireText(newAuthor, "Author");
+        Book book = findBook(id);
+
+        book.setTitle(cleanTitle);
+        book.setAuthor(cleanAuthor);
+        return book;
+    }
+
+    /**
+     * Removes a book from the library.
+     *
+     * @param id the ID of the book to delete
+     * @return the book that was removed
+     * @throws ValidationException   if the ID is empty
+     * @throws BookNotFoundException if no book has this ID
+     */
+    public Book deleteBook(String id) throws ValidationException, BookNotFoundException {
+        Book book = findBook(id);
+        books.remove(book.getId());
+        return book;
+    }
+
+    /**
+     * Sets the status of an existing book to Available, Issued or Reserved.
+     *
+     * @param id     the ID of the book
+     * @param status the new status
+     * @return the updated book
+     * @throws ValidationException   if the ID is empty or the status is null
+     * @throws BookNotFoundException if no book has this ID
+     */
+    public Book setStatus(String id, BookStatus status)
+            throws ValidationException, BookNotFoundException {
+        if (status == null) {
+            throw new ValidationException("Please choose a status.");
+        }
+        Book book = findBook(id);
+        book.setStatus(status);
         return book;
     }
 
