@@ -231,6 +231,84 @@ public class LibraryServiceTest {
         assertEquals(BookStatus.AVAILABLE, service.findBook("B001").getStatus());
     }
 
+    // ---------- Search, status counts and loading ----------
+
+    /** Adds three sample books used by the search tests. */
+    private void addSampleBooks() throws Exception {
+        service.addBook("B001", "Clean Code", "Robert Martin");
+        service.addBook("B002", "Effective Java", "Joshua Bloch");
+        service.addBook("B003", "Head First Java", "Kathy Sierra");
+    }
+
+    /** Search finds books by title, author or ID, ignoring upper/lower case. */
+    @Test
+    public void searchMatchesTitleAuthorAndIdIgnoringCase() throws Exception {
+        addSampleBooks();
+
+        assertEquals(2, service.searchBooks("JAVA", null).size());
+        assertEquals(1, service.searchBooks("bloch", null).size());
+        assertEquals("B003", service.searchBooks("b003", null).get(0).getId());
+    }
+
+    /** An empty or null search text returns every book. */
+    @Test
+    public void emptySearchReturnsAllBooks() throws Exception {
+        addSampleBooks();
+
+        assertEquals(3, service.searchBooks("", null).size());
+        assertEquals(3, service.searchBooks(null, null).size());
+        assertEquals(3, service.searchBooks("   ", null).size());
+    }
+
+    /** A search with no match returns an empty list. */
+    @Test
+    public void searchWithNoMatchReturnsEmptyList() throws Exception {
+        addSampleBooks();
+
+        assertTrue(service.searchBooks("python", null).isEmpty());
+    }
+
+    /** The status filter keeps only books with that status, combined with text. */
+    @Test
+    public void searchCanFilterByStatus() throws Exception {
+        addSampleBooks();
+        service.setStatus("B002", BookStatus.ISSUED);
+
+        List<Book> issued = service.searchBooks("", BookStatus.ISSUED);
+        assertEquals(1, issued.size());
+        assertEquals("B002", issued.get(0).getId());
+        assertEquals(1, service.searchBooks("java", BookStatus.ISSUED).size());
+        assertTrue(service.searchBooks("clean", BookStatus.ISSUED).isEmpty());
+    }
+
+    /** Status counts follow the status changes. */
+    @Test
+    public void countByStatusFollowsChanges() throws Exception {
+        addSampleBooks();
+        service.setStatus("B001", BookStatus.ISSUED);
+        service.setStatus("B002", BookStatus.RESERVED);
+
+        assertEquals(1, service.countByStatus(BookStatus.AVAILABLE));
+        assertEquals(1, service.countByStatus(BookStatus.ISSUED));
+        assertEquals(1, service.countByStatus(BookStatus.RESERVED));
+        service.deleteBook("B001");
+        assertEquals(0, service.countByStatus(BookStatus.ISSUED));
+    }
+
+    /** loadBooks adds the books but never creates a duplicate ID. */
+    @Test
+    public void loadBooksSkipsDuplicateIds() throws Exception {
+        service.addBook("B001", "Clean Code", "Robert Martin");
+
+        service.loadBooks(java.util.Arrays.asList(
+                new Book("B001", "Other Title", "Other Author"),
+                new Book("B002", "Effective Java", "Joshua Bloch", BookStatus.ISSUED)));
+
+        assertEquals(2, service.getBookCount());
+        assertEquals("Clean Code", service.findBook("B001").getTitle());
+        assertEquals(BookStatus.ISSUED, service.findBook("B002").getStatus());
+    }
+
     /** Changing the list returned by getAllBooks does not change the library. */
     @Test
     public void getAllBooksReturnsACopy() throws Exception {
