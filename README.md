@@ -5,12 +5,16 @@ Software Construction (BESE-30) - Open Ended Lab, Military College of Signals, N
 
 ## Features
 
-- Add a book (ID, title, author)
-- View all books (with a message when the library is empty)
-- Update book details (title and author)
-- Delete a book (with a confirmation question)
-- Set status: Available / Issued / Reserved
-- Input validation (no empty ID, title or author; no duplicate ID) with clear error messages
+- **Add, update and delete books** (ID, title, author), with a confirmation before deleting
+- **Status tracking:** Available / Issued / Reserved, shown as coloured badges
+- **Summary cards:** live counts of total, available, issued and reserved books
+- **Search and filter:** search by ID, title or author, and filter by status
+- **View all** with a clear message when the library is empty
+- **Input validation:** no empty ID, title or author, and no duplicate ID. The field
+  that caused the problem turns red and the message appears under the form
+- **Automatic saving:** every change is saved to `library-data.csv` and loaded again
+  the next time the program starts
+- Resizable window with a sortable table (click a column heading)
 
 ## Requirements
 
@@ -35,12 +39,13 @@ components are missing".)
 
 ## How to use the application
 
-1. **Add** - type an ID, title and author, then click *Add*.
+1. **Add** - type an ID, title and author, then click *Add book* (or press Enter in the Author box).
 2. **Update** - click a row (or type an ID), edit the title and/or author, click *Update*.
 3. **Set status** - click a row (or type an ID), pick a status, click *Set status*.
 4. **Delete** - click a row (or type an ID), click *Delete* and confirm.
-5. **View all** - reloads the table; an empty library shows a message.
-6. **Clear** - empties the form.
+5. **Search / filter** - type in the search box or pick a status above the table.
+6. **View all** - clears the search and the filter. An empty library shows a message.
+7. **Clear** - empties the form.
 
 Update, Delete and Set status always work on the ID in the *Book ID* box.
 Clicking a table row simply copies that book into the form.
@@ -63,45 +68,65 @@ The HTML is written to `docs/javadoc/`. Open `docs/javadoc/index.html` in a brow
 
 ```
 library-management-system/
-├── pom.xml
+├── pom.xml                          build file: dependencies and plugins
 ├── README.md
+├── library-data.csv                 created by the app when you add books (not in Git)
 ├── src/
-│   ├── main/java/library/
-│   │   ├── Launcher.java            starts the app from an IDE
-│   │   ├── Main.java                JavaFX entry point
-│   │   ├── model/                   Book, BookStatus
-│   │   ├── service/                 LibraryService (all rules and storage)
-│   │   ├── exception/               LibraryException and its three subclasses
-│   │   └── ui/                      MainView (window, table, form, dialogs)
-│   └── test/java/library/service/   LibraryServiceTest (JUnit 4)
-└── docs/javadoc/                    generated documentation
+│   ├── main/
+│   │   ├── java/library/
+│   │   │   ├── Launcher.java        starts the app from an IDE
+│   │   │   ├── Main.java            JavaFX entry point
+│   │   │   ├── model/               BACKEND - plain data
+│   │   │   │   ├── Book.java
+│   │   │   │   └── BookStatus.java
+│   │   │   ├── service/             BACKEND - all rules and the in-memory books
+│   │   │   │   └── LibraryService.java
+│   │   │   ├── exception/           BACKEND - error types
+│   │   │   │   └── LibraryException.java and its three subclasses
+│   │   │   ├── storage/             BACKEND - saving and loading the CSV file
+│   │   │   │   └── BookFileStore.java
+│   │   │   └── ui/                  FRONTEND - what the user sees and clicks
+│   │   │       └── MainView.java
+│   │   └── resources/
+│   │       └── styles.css           FRONTEND - colours, fonts, badges
+│   └── test/java/library/           JUnit tests
+│       ├── service/LibraryServiceTest.java
+│       └── storage/BookFileStoreTest.java
+└── docs/
+    ├── javadoc/                     generated documentation
+    ├── report/                      the lab report
+    └── screenshots/                 screenshots used in the report
 ```
 
 ## Design
 
 - **Layers:** `ui` shows the screen and calls `service`; `service` holds the
-  books and enforces the rules; `model` holds plain data. The UI never changes
-  data directly.
+  books and enforces the rules; `storage` reads and writes the file; `model`
+  holds plain data. The UI never changes data directly.
 - **Data structure:** `LinkedHashMap<String, Book>` keyed by book ID. Duplicate
   checks and lookups take O(1) time and books stay in the order they were added.
+  Search walks through the books once, which is O(n).
 - **Errors:** the service throws `ValidationException`, `DuplicateBookException`
-  or `BookNotFoundException` (all extend `LibraryException`). The UI catches
-  `LibraryException` and shows its message in an error dialog, so bad input
-  never crashes the program.
-- **Storage:** books are kept in memory only; they are lost when the program closes.
+  or `BookNotFoundException` (all extend `LibraryException`). A
+  `ValidationException` also names the field at fault, so the UI can mark it red.
+  Bad input never crashes the program.
+- **Storage:** books are saved as CSV (`id,title,author,status`). Commas and quotes
+  in titles are escaped, damaged lines are skipped when loading, and the file is
+  written to a temporary file first so a crash cannot corrupt it.
 
 ## Test cases
 
 The eight test cases from the OEL brief are automated in `LibraryServiceTest`
-(`tc1` to `tc8`) and can also be tried by hand in the window.
+(`tc1` to `tc8`) and can also be tried by hand in the window. Extra tests cover
+search, status counts and saving/loading.
 
 | # | Test case | Expected result |
 |---|-----------|-----------------|
 | 1 | Add a valid book | Book is added |
-| 2 | Add a book with an empty title | Validation message shown |
-| 3 | Add a book with a duplicate ID | Error message shown |
+| 2 | Add a book with an empty title | Validation message shown, Title field turns red |
+| 3 | Add a book with a duplicate ID | Error message shown, Book ID field turns red |
 | 4 | View all books | All books displayed |
-| 5 | View an empty library | Appropriate message shown |
+| 5 | View an empty library | "No books yet" message shown |
 | 6 | Update an existing book | Details updated |
-| 7 | Update a non-existing book | Handled gracefully |
-| 8 | Delete an existing book | Book removed |
+| 7 | Update a non-existing book | Error message shown, program keeps running |
+| 8 | Delete an existing book | Book removed after confirmation |
