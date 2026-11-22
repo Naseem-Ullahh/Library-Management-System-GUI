@@ -42,7 +42,7 @@ import java.util.List;
  * <p>This class only builds the screen and reacts to clicks. Every rule
  * (validation, duplicate check, search) lives in {@link LibraryService}.</p>
  *
- * @author Muhammad Rehan Sabir
+ * @author Naseem, Amaan, Waseem
  */
 public class MainView {
 

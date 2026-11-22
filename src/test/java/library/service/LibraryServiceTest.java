@@ -22,7 +22,7 @@ import static org.junit.Assert.assertTrue;
  * <p>Tests {@code tc1} to {@code tc8} match the eight test cases listed in
  * the OEL brief. The remaining tests cover extra edge cases.</p>
  *
- * @author Muhammad Rehan Sabir
+ * @author Naseem, Amaan, Waseem
  */
 public class LibraryServiceTest {
 

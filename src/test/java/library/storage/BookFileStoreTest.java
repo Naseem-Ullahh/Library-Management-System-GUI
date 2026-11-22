@@ -22,7 +22,7 @@ import static org.junit.Assert.assertTrue;
 /**
  * Unit tests for {@link BookFileStore}.
  *
- * @author Muhammad Rehan Sabir
+ * @author Naseem, Amaan, Waseem
  */
 public class BookFileStoreTest {
 
