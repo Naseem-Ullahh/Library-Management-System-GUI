@@ -19,7 +19,7 @@ import java.util.Map;
  * in the order they were added. The user interface never touches the map
  * directly; it only calls the methods of this class.</p>
  *
- * @author Naseem, Amaan, Waseem
+ * @author Muhammad Rehan Sabir
  */
 public class LibraryService {
 
@@ -47,9 +47,9 @@ public class LibraryService {
      */
     public Book addBook(String id, String title, String author)
             throws ValidationException, DuplicateBookException {
-        String cleanId = requireText(id, "Book ID");
-        String cleanTitle = requireText(title, "Title");
-        String cleanAuthor = requireText(author, "Author");
+        String cleanId = requireText(id, ValidationException.FIELD_ID);
+        String cleanTitle = requireText(title, ValidationException.FIELD_TITLE);
+        String cleanAuthor = requireText(author, ValidationException.FIELD_AUTHOR);
 
         if (books.containsKey(cleanId)) {
             throw new DuplicateBookException(cleanId);
@@ -90,7 +90,7 @@ public class LibraryService {
      * @throws BookNotFoundException if no book has this ID
      */
     public Book findBook(String id) throws ValidationException, BookNotFoundException {
-        String cleanId = requireText(id, "Book ID");
+        String cleanId = requireText(id, ValidationException.FIELD_ID);
         Book book = books.get(cleanId);
         if (book == null) {
             throw new BookNotFoundException(cleanId);
@@ -114,8 +114,8 @@ public class LibraryService {
      */
     public Book updateBook(String id, String newTitle, String newAuthor)
             throws ValidationException, BookNotFoundException {
-        String cleanTitle = requireText(newTitle, "Title");
-        String cleanAuthor = requireText(newAuthor, "Author");
+        String cleanTitle = requireText(newTitle, ValidationException.FIELD_TITLE);
+        String cleanAuthor = requireText(newAuthor, ValidationException.FIELD_AUTHOR);
         Book book = findBook(id);
 
         book.setTitle(cleanTitle);
@@ -149,7 +149,7 @@ public class LibraryService {
     public Book setStatus(String id, BookStatus status)
             throws ValidationException, BookNotFoundException {
         if (status == null) {
-            throw new ValidationException("Please choose a status.");
+            throw new ValidationException("Please choose a status.", ValidationException.FIELD_STATUS);
         }
         Book book = findBook(id);
         book.setStatus(status);
@@ -167,7 +167,7 @@ public class LibraryService {
      */
     private String requireText(String value, String fieldName) throws ValidationException {
         if (value == null || value.trim().isEmpty()) {
-            throw new ValidationException(fieldName + " cannot be empty.");
+            throw new ValidationException(fieldName + " cannot be empty.", fieldName);
         }
         return value.trim();
     }

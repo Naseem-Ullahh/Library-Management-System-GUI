@@ -22,7 +22,7 @@ import static org.junit.Assert.assertTrue;
  * <p>Tests {@code tc1} to {@code tc8} match the eight test cases listed in
  * the OEL brief. The remaining tests cover extra edge cases.</p>
  *
- * @author Naseem, Amaan, Waseem
+ * @author Muhammad Rehan Sabir
  */
 public class LibraryServiceTest {
 
@@ -139,6 +139,21 @@ public class LibraryServiceTest {
                 () -> service.addBook("B001", "Clean Code", ""));
 
         assertEquals("Author cannot be empty.", ex.getMessage());
+    }
+
+    /** A validation error names the field that caused it. */
+    @Test
+    public void validationErrorNamesTheField() {
+        ValidationException noId = assertThrows(ValidationException.class,
+                () -> service.addBook("", "Clean Code", "Robert Martin"));
+        ValidationException noTitle = assertThrows(ValidationException.class,
+                () -> service.addBook("B001", "", "Robert Martin"));
+        ValidationException noAuthor = assertThrows(ValidationException.class,
+                () -> service.addBook("B001", "Clean Code", ""));
+
+        assertEquals(ValidationException.FIELD_ID, noId.getField());
+        assertEquals(ValidationException.FIELD_TITLE, noTitle.getField());
+        assertEquals(ValidationException.FIELD_AUTHOR, noAuthor.getField());
     }
 
     /** An empty ID is rejected. */
