@@ -379,15 +379,23 @@ public class MainView {
     }
 
     /**
-     * Handles the Update button: changes the title and author of the book
-     * whose ID is typed in the form.
+     * Handles the Update button: changes the title, author and status of the
+     * book whose ID is typed in the form.
      */
     private void onUpdate() {
         try {
+            BookStatus before = service.findBook(idField.getText()).getStatus();
             Book book = service.updateBook(idField.getText(), titleField.getText(), authorField.getText());
+            if (statusBox.getValue() != null && statusBox.getValue() != book.getStatus()) {
+                book = service.setStatus(book.getId(), statusBox.getValue());
+            }
             persist();
             refreshAll();
-            messageLabel.setText("Updated book " + book.getId() + ".");
+            String statusText = before == book.getStatus()
+                    ? "status stays " + book.getStatus()
+                    : "status changed from " + before + " to " + book.getStatus();
+            messageLabel.setText("Updated book " + book.getId() + ": \"" + book.getTitle()
+                    + "\" by " + book.getAuthor() + ", " + statusText + ".");
         } catch (LibraryException error) {
             showError(error);
         }
@@ -399,10 +407,17 @@ public class MainView {
      */
     private void onSetStatus() {
         try {
+            BookStatus before = service.findBook(idField.getText()).getStatus();
             Book book = service.setStatus(idField.getText(), statusBox.getValue());
             persist();
             refreshAll();
-            messageLabel.setText("Book " + book.getId() + " is now " + book.getStatus() + ".");
+            if (before == book.getStatus()) {
+                messageLabel.setText("Book " + book.getId() + " is already " + before
+                        + ". Choose a different status to change it.");
+            } else {
+                messageLabel.setText("Book " + book.getId() + " status changed from " + before
+                        + " to " + book.getStatus() + ".");
+            }
         } catch (LibraryException error) {
             showError(error);
         }
@@ -557,6 +572,8 @@ public class MainView {
     private void refreshTable() {
         List<Book> shown = service.searchBooks(searchField.getText(), selectedFilterStatus());
         table.setItems(FXCollections.observableArrayList(shown));
+        // The same Book objects are shown again, so redraw the cells to show a changed status.
+        table.refresh();
 
         if (service.getBookCount() == 0) {
             table.setPlaceholder(new Label("No books yet. Add your first book using the form."));
