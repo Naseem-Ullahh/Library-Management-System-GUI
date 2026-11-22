@@ -4,17 +4,20 @@ import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 import library.service.LibraryService;
+import library.storage.BookFileStore;
 import library.ui.MainView;
 
 import java.net.URL;
+import java.nio.file.Paths;
 
 /**
  * JavaFX entry point of the Library Book Management System.
  *
- * <p>It creates the {@link LibraryService} that holds the books, builds the
- * main window around it, applies the stylesheet and shows it.</p>
+ * <p>It creates the {@link LibraryService} that holds the books and the
+ * {@link BookFileStore} that saves them to {@code library-data.csv}, builds
+ * the main window around them, applies the stylesheet and shows it.</p>
  *
- * @author Muhammad Rehan Sabir
+ * @author Naseem Ullah
  */
 public class Main extends Application {
 
@@ -34,7 +37,8 @@ public class Main extends Application {
     @Override
     public void start(Stage stage) {
         LibraryService service = new LibraryService();
-        MainView view = new MainView(service);
+        BookFileStore store = new BookFileStore(Paths.get("library-data.csv"));
+        MainView view = new MainView(service, store);
 
         Scene scene = new Scene(view.getRoot(), 1100, 700);
         URL stylesheet = getClass().getResource("/styles.css");

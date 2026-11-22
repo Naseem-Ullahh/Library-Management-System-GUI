@@ -2,6 +2,7 @@ package library.storage;
 
 import library.model.Book;
 import library.model.BookStatus;
+import library.service.LibraryService;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -21,7 +22,7 @@ import static org.junit.Assert.assertTrue;
 /**
  * Unit tests for {@link BookFileStore}.
  *
- * @author Naseem Ullah
+ * @author Muhammad Rehan Sabir
  */
 public class BookFileStoreTest {
 
@@ -132,6 +133,24 @@ public class BookFileStoreTest {
 
         assertEquals("id,title,author,status", lines.get(0));
         assertEquals("B001,Clean Code,Robert Martin,ISSUED", lines.get(1));
+    }
+
+    /** A library that is saved can be restored by a brand-new library (restart). */
+    @Test
+    public void savedLibraryIsRestoredByNewService() throws Exception {
+        LibraryService first = new LibraryService();
+        first.addBook("B001", "Clean Code", "Robert Martin");
+        first.addBook("B002", "Effective Java", "Joshua Bloch");
+        first.setStatus("B002", BookStatus.ISSUED);
+        store.save(first.getAllBooks());
+
+        LibraryService second = new LibraryService();
+        second.loadBooks(store.load());
+
+        assertEquals(2, second.getBookCount());
+        assertEquals("Clean Code", second.findBook("B001").getTitle());
+        assertEquals(BookStatus.ISSUED, second.findBook("B002").getStatus());
+        assertEquals(1, second.countByStatus(BookStatus.AVAILABLE));
     }
 
     /** No temporary file is left behind after saving. */

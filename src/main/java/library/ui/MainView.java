@@ -22,10 +22,13 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import library.exception.LibraryException;
+import library.exception.ValidationException;
 import library.model.Book;
 import library.model.BookStatus;
 import library.service.LibraryService;
+import library.storage.BookFileStore;
 
+import java.io.IOException;
 import java.util.List;
 
 /**
@@ -44,8 +47,10 @@ import java.util.List;
 public class MainView {
 
     private static final String ALL_STATUSES = "All statuses";
+    private static final String ERROR_STYLE = "field-error";
 
     private final LibraryService service;
+    private final BookFileStore store;
     private final BorderPane root = new BorderPane();
 
     private final TextField idField = new TextField();
@@ -69,17 +74,23 @@ public class MainView {
     private final Label reservedValue = new Label("0");
 
     private final TableView<Book> table = new TableView<>();
+    private final Label formErrorLabel = new Label();
     private final Label messageLabel = new Label();
+    private final Label saveLabel = new Label();
 
     /**
-     * Builds the window contents for the given library.
+     * Builds the window contents for the given library and loads the books
+     * that were saved earlier.
      *
      * @param service the library service that stores the books
+     * @param store   the file the books are saved to and loaded from
      */
-    public MainView(LibraryService service) {
+    public MainView(LibraryService service, BookFileStore store) {
         this.service = service;
+        this.store = store;
         buildLayout();
         connectActions();
+        loadSavedBooks();
         refreshAll();
         messageLabel.setText(describeLibrary());
     }
@@ -190,12 +201,16 @@ public class MainView {
         hint.getStyleClass().add("hint-label");
         hint.setWrapText(true);
 
+        formErrorLabel.getStyleClass().add("form-error");
+        formErrorLabel.setWrapText(true);
+        hideFormError();
+
         VBox panel = new VBox(12, title,
                 fieldGroup("Book ID", idField),
                 fieldGroup("Title", titleField),
                 fieldGroup("Author", authorField),
                 fieldGroup("Status", statusBox),
-                mainButtons, otherButtons, hint);
+                mainButtons, otherButtons, formErrorLabel, hint);
         panel.getStyleClass().add("panel");
         panel.setMinWidth(320);
         panel.setPrefWidth(320);
@@ -291,13 +306,19 @@ public class MainView {
     }
 
     /**
-     * Creates the bar at the bottom of the window that shows messages.
+     * Creates the bar at the bottom of the window. It shows messages on the
+     * left and the save status on the right.
      *
      * @return the status bar
      */
     private HBox buildStatusBar() {
         messageLabel.getStyleClass().add("status-text");
-        HBox bar = new HBox(messageLabel);
+        saveLabel.getStyleClass().add("status-text");
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        HBox bar = new HBox(messageLabel, spacer, saveLabel);
         bar.getStyleClass().add("status-bar");
         return bar;
     }
@@ -321,6 +342,11 @@ public class MainView {
         // Pressing Enter in the last field adds the book.
         authorField.setOnAction(event -> onAdd());
 
+        // Typing in a form field removes the red error mark.
+        idField.textProperty().addListener((observable, oldText, newText) -> hideFormError());
+        titleField.textProperty().addListener((observable, oldText, newText) -> hideFormError());
+        authorField.textProperty().addListener((observable, oldText, newText) -> hideFormError());
+
         // Typing in the search box or changing the filter narrows the table.
         searchField.textProperty().addListener((observable, oldText, newText) -> refreshTable());
         filterBox.setOnAction(event -> refreshTable());
@@ -342,6 +368,7 @@ public class MainView {
     private void onAdd() {
         try {
             Book book = service.addBook(idField.getText(), titleField.getText(), authorField.getText());
+            persist();
             refreshAll();
             clearForm();
             messageLabel.setText("Added \"" + book.getTitle() + "\" (" + book.getId() + "). "
@@ -358,6 +385,7 @@ public class MainView {
     private void onUpdate() {
         try {
             Book book = service.updateBook(idField.getText(), titleField.getText(), authorField.getText());
+            persist();
             refreshAll();
             messageLabel.setText("Updated book " + book.getId() + ".");
         } catch (LibraryException error) {
@@ -372,6 +400,7 @@ public class MainView {
     private void onSetStatus() {
         try {
             Book book = service.setStatus(idField.getText(), statusBox.getValue());
+            persist();
             refreshAll();
             messageLabel.setText("Book " + book.getId() + " is now " + book.getStatus() + ".");
         } catch (LibraryException error) {
@@ -395,6 +424,7 @@ public class MainView {
 
             if (confirm.showAndWait().orElse(ButtonType.NO) == ButtonType.YES) {
                 service.deleteBook(book.getId());
+                persist();
                 refreshAll();
                 clearForm();
                 messageLabel.setText("Deleted book " + book.getId() + ". " + describeLibrary());
@@ -424,19 +454,89 @@ public class MainView {
         authorField.clear();
         statusBox.setValue(BookStatus.AVAILABLE);
         table.getSelectionModel().clearSelection();
+        hideFormError();
     }
 
     /**
-     * Shows an error dialog with the message of the given exception.
+     * Shows an error under the form and marks the field that caused it in red.
      *
      * @param error the problem to show to the user
      */
     private void showError(LibraryException error) {
-        Alert alert = new Alert(Alert.AlertType.ERROR, error.getMessage());
-        alert.setTitle("Error");
-        alert.setHeaderText(null);
-        alert.showAndWait();
+        hideFormError();
+        formErrorLabel.setText(error.getMessage());
+        formErrorLabel.setVisible(true);
+        formErrorLabel.setManaged(true);
+
+        TextField culprit = fieldFor(error);
+        if (culprit != null) {
+            culprit.getStyleClass().add(ERROR_STYLE);
+        }
         messageLabel.setText("Error: " + error.getMessage());
+    }
+
+    /**
+     * Removes the error message and the red marks from the form.
+     */
+    private void hideFormError() {
+        formErrorLabel.setText("");
+        formErrorLabel.setVisible(false);
+        formErrorLabel.setManaged(false);
+        idField.getStyleClass().remove(ERROR_STYLE);
+        titleField.getStyleClass().remove(ERROR_STYLE);
+        authorField.getStyleClass().remove(ERROR_STYLE);
+    }
+
+    /**
+     * Finds the form field that an error is about.
+     *
+     * @param error the error that was reported
+     * @return the field to mark in red, or {@code null} if no single field is to blame
+     */
+    private TextField fieldFor(LibraryException error) {
+        if (error instanceof ValidationException) {
+            String field = ((ValidationException) error).getField();
+            if (ValidationException.FIELD_TITLE.equals(field)) {
+                return titleField;
+            }
+            if (ValidationException.FIELD_AUTHOR.equals(field)) {
+                return authorField;
+            }
+            if (ValidationException.FIELD_ID.equals(field)) {
+                return idField;
+            }
+            return null;
+        }
+        // A duplicate ID or a book that is not found are both about the ID.
+        return idField;
+    }
+
+    // ------------------------------------------------------------------
+    // Saving and loading
+    // ------------------------------------------------------------------
+
+    /**
+     * Loads the books that were saved the last time the program ran.
+     */
+    private void loadSavedBooks() {
+        try {
+            service.loadBooks(store.load());
+            saveLabel.setText("Auto-save file: " + store.getFile().getFileName());
+        } catch (IOException error) {
+            saveLabel.setText("Could not read " + store.getFile().getFileName());
+        }
+    }
+
+    /**
+     * Saves all books to the file. Called after every change.
+     */
+    private void persist() {
+        try {
+            store.save(service.getAllBooks());
+            saveLabel.setText("Saved to " + store.getFile().getFileName());
+        } catch (IOException error) {
+            saveLabel.setText("Save failed: " + error.getMessage());
+        }
     }
 
     // ------------------------------------------------------------------

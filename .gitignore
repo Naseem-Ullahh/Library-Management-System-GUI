@@ -15,3 +15,7 @@ bin/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Data file created by the application at run time
+library-data.csv
+library-data.csv.tmp
