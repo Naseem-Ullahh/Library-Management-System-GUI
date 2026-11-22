@@ -73,6 +73,66 @@ public class LibraryService {
     }
 
     /**
+     * Searches the books by text and, optionally, by status.
+     *
+     * <p>A book matches the text if its ID, title or author contains the
+     * search text, ignoring upper and lower case. An empty search text matches
+     * every book. If {@code statusFilter} is not {@code null}, only books with
+     * that status are returned.</p>
+     *
+     * @param query        the text to look for; {@code null} or empty matches all
+     * @param statusFilter the status to keep, or {@code null} for any status
+     * @return a new list of the matching books, in the order they were added
+     */
+    public List<Book> searchBooks(String query, BookStatus statusFilter) {
+        String needle = query == null ? "" : query.trim().toLowerCase();
+        List<Book> matches = new ArrayList<>();
+
+        for (Book book : books.values()) {
+            boolean statusMatches = statusFilter == null || book.getStatus() == statusFilter;
+            boolean textMatches = needle.isEmpty()
+                    || book.getId().toLowerCase().contains(needle)
+                    || book.getTitle().toLowerCase().contains(needle)
+                    || book.getAuthor().toLowerCase().contains(needle);
+
+            if (statusMatches && textMatches) {
+                matches.add(book);
+            }
+        }
+        return matches;
+    }
+
+    /**
+     * Counts the books that have a given status.
+     *
+     * @param status the status to count
+     * @return how many books currently have this status
+     */
+    public int countByStatus(BookStatus status) {
+        int count = 0;
+        for (Book book : books.values()) {
+            if (book.getStatus() == status) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    /**
+     * Adds books that were read from a saved file.
+     *
+     * <p>Books whose ID is already in the library are skipped, so loading can
+     * never create a duplicate ID.</p>
+     *
+     * @param loaded the books to add
+     */
+    public void loadBooks(List<Book> loaded) {
+        for (Book book : loaded) {
+            books.putIfAbsent(book.getId(), book);
+        }
+    }
+
+    /**
      * Returns the number of books in the library.
      *
      * @return the book count
