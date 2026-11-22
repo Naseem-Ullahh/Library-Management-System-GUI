@@ -1,37 +1,49 @@
 package library.ui;
 
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import library.exception.LibraryException;
 import library.model.Book;
 import library.model.BookStatus;
 import library.service.LibraryService;
 
+import java.util.List;
+
 /**
- * The main window of the application.
+ * The main window of the application (the front end).
  *
- * <p>The window has three parts: a form with buttons at the top, a table of
- * books in the centre and a status bar at the bottom. This class only builds
- * the screen and reacts to clicks; every rule (validation, duplicate check)
- * lives in {@link LibraryService}.</p>
+ * <p>The window has four parts: a header, four summary cards (total,
+ * available, issued, reserved), a form on the left and a searchable table of
+ * books on the right, plus a status bar at the bottom. Colours and fonts come
+ * from {@code styles.css}.</p>
  *
- * @author Naseem, Amaan, Waseem
+ * <p>This class only builds the screen and reacts to clicks. Every rule
+ * (validation, duplicate check, search) lives in {@link LibraryService}.</p>
+ *
+ * @author Muhammad Rehan Sabir
  */
 public class MainView {
+
+    private static final String ALL_STATUSES = "All statuses";
 
     private final LibraryService service;
     private final BorderPane root = new BorderPane();
@@ -41,12 +53,20 @@ public class MainView {
     private final TextField authorField = new TextField();
     private final ComboBox<BookStatus> statusBox = new ComboBox<>();
 
-    private final Button addButton = new Button("Add");
+    private final Button addButton = new Button("Add book");
     private final Button updateButton = new Button("Update");
-    private final Button deleteButton = new Button("Delete");
     private final Button statusButton = new Button("Set status");
+    private final Button deleteButton = new Button("Delete");
     private final Button clearButton = new Button("Clear");
     private final Button viewAllButton = new Button("View all");
+
+    private final TextField searchField = new TextField();
+    private final ComboBox<String> filterBox = new ComboBox<>();
+
+    private final Label totalValue = new Label("0");
+    private final Label availableValue = new Label("0");
+    private final Label issuedValue = new Label("0");
+    private final Label reservedValue = new Label("0");
 
     private final TableView<Book> table = new TableView<>();
     private final Label messageLabel = new Label();
@@ -60,7 +80,7 @@ public class MainView {
         this.service = service;
         buildLayout();
         connectActions();
-        refreshTable();
+        refreshAll();
         messageLabel.setText(describeLibrary());
     }
 
@@ -73,98 +93,237 @@ public class MainView {
         return root;
     }
 
+    // ------------------------------------------------------------------
+    // Building the screen
+    // ------------------------------------------------------------------
+
     /**
-     * Arranges the form, the table and the status bar inside the window.
+     * Puts the header, the content area and the status bar into the window.
      */
     private void buildLayout() {
-        Label heading = new Label("Library Book Management System");
-        heading.setStyle("-fx-font-size: 22px; -fx-font-weight: bold;");
-
-        VBox top = new VBox(12, heading, buildForm(), buildButtons());
-        top.setPadding(new Insets(15));
-        root.setTop(top);
-
-        buildTable();
-        BorderPane.setMargin(table, new Insets(0, 15, 0, 15));
-        root.setCenter(table);
-
-        HBox bottom = new HBox(messageLabel);
-        bottom.setPadding(new Insets(10, 15, 10, 15));
-        root.setBottom(bottom);
+        root.getStyleClass().add("root-pane");
+        root.setTop(buildHeader());
+        root.setCenter(buildContent());
+        root.setBottom(buildStatusBar());
     }
 
     /**
-     * Creates the input form (ID, title, author and status).
+     * Creates the blue header with the application name.
      *
-     * @return the form layout
+     * @return the header
      */
-    private GridPane buildForm() {
+    private VBox buildHeader() {
+        Label title = new Label("Library Book Management System");
+        title.getStyleClass().add("app-title");
+        Label subtitle = new Label("Add, update, search and track the status of every book");
+        subtitle.getStyleClass().add("app-subtitle");
+
+        VBox header = new VBox(2, title, subtitle);
+        header.getStyleClass().add("header");
+        return header;
+    }
+
+    /**
+     * Creates the area under the header: summary cards above the form and table.
+     *
+     * @return the content area
+     */
+    private VBox buildContent() {
+        HBox cards = new HBox(14,
+                createCard("Total books", totalValue, "card-total"),
+                createCard("Available", availableValue, "card-available"),
+                createCard("Issued", issuedValue, "card-issued"),
+                createCard("Reserved", reservedValue, "card-reserved"));
+
+        HBox main = new HBox(16, buildFormPanel(), buildTablePanel());
+        VBox.setVgrow(main, Priority.ALWAYS);
+
+        VBox content = new VBox(16, cards, main);
+        content.setPadding(new Insets(18, 24, 18, 24));
+        return content;
+    }
+
+    /**
+     * Creates one summary card: a big number with a caption below it.
+     *
+     * @param caption    the text under the number, for example {@code "Issued"}
+     * @param valueLabel the label that shows the number
+     * @param styleClass the CSS class that gives the number its colour
+     * @return the card
+     */
+    private VBox createCard(String caption, Label valueLabel, String styleClass) {
+        valueLabel.getStyleClass().add("stat-value");
+        Label captionLabel = new Label(caption);
+        captionLabel.getStyleClass().add("stat-caption");
+
+        VBox card = new VBox(2, valueLabel, captionLabel);
+        card.getStyleClass().addAll("stat-card", styleClass);
+        card.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(card, Priority.ALWAYS);
+        return card;
+    }
+
+    /**
+     * Creates the panel on the left with the book form and the action buttons.
+     *
+     * @return the form panel
+     */
+    private VBox buildFormPanel() {
+        Label title = new Label("Book details");
+        title.getStyleClass().add("panel-title");
+
         idField.setPromptText("e.g. B001");
         titleField.setPromptText("Book title");
         authorField.setPromptText("Author name");
-        idField.setPrefWidth(280);
-        titleField.setPrefWidth(280);
-        authorField.setPrefWidth(240);
 
         statusBox.getItems().addAll(BookStatus.values());
         statusBox.setValue(BookStatus.AVAILABLE);
-        statusBox.setPrefWidth(240);
+        statusBox.setMaxWidth(Double.MAX_VALUE);
 
-        GridPane form = new GridPane();
-        form.setHgap(10);
-        form.setVgap(8);
-        form.addRow(0, new Label("Book ID:"), idField, new Label("Status:"), statusBox);
-        form.addRow(1, new Label("Title:"), titleField, new Label("Author:"), authorField);
-        return form;
+        addButton.getStyleClass().add("button-primary");
+        deleteButton.getStyleClass().add("button-danger");
+        HBox mainButtons = new HBox(8, addButton, updateButton, statusButton);
+        HBox otherButtons = new HBox(8, deleteButton, clearButton);
+
+        Label hint = new Label("Click a row in the table to load it here. "
+                + "Update, Set status and Delete work on the Book ID.");
+        hint.getStyleClass().add("hint-label");
+        hint.setWrapText(true);
+
+        VBox panel = new VBox(12, title,
+                fieldGroup("Book ID", idField),
+                fieldGroup("Title", titleField),
+                fieldGroup("Author", authorField),
+                fieldGroup("Status", statusBox),
+                mainButtons, otherButtons, hint);
+        panel.getStyleClass().add("panel");
+        panel.setMinWidth(320);
+        panel.setPrefWidth(320);
+        panel.setMaxWidth(320);
+        return panel;
     }
 
     /**
-     * Creates the row of action buttons.
+     * Puts a small caption above an input control.
      *
-     * @return the button row
+     * @param labelText the caption
+     * @param field     the input control
+     * @return the caption and the control, stacked
      */
-    private HBox buildButtons() {
-        return new HBox(8, addButton, updateButton, deleteButton,
-                statusButton, clearButton, viewAllButton);
+    private VBox fieldGroup(String labelText, Node field) {
+        Label label = new Label(labelText);
+        label.getStyleClass().add("field-label");
+        return new VBox(4, label, field);
     }
 
     /**
-     * Sets up the table columns and the message shown when it has no rows.
+     * Creates the panel on the right with the search tools and the table.
+     *
+     * @return the table panel
+     */
+    private VBox buildTablePanel() {
+        Label title = new Label("Books");
+        title.getStyleClass().add("panel-title");
+
+        searchField.setPromptText("Search by ID, title or author");
+        searchField.setPrefWidth(250);
+
+        filterBox.getItems().add(ALL_STATUSES);
+        for (BookStatus status : BookStatus.values()) {
+            filterBox.getItems().add(status.getLabel());
+        }
+        filterBox.setValue(ALL_STATUSES);
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        HBox toolbar = new HBox(10, title, spacer, searchField, filterBox, viewAllButton);
+        toolbar.setAlignment(Pos.CENTER_LEFT);
+
+        buildTable();
+        VBox.setVgrow(table, Priority.ALWAYS);
+
+        VBox panel = new VBox(12, toolbar, table);
+        panel.getStyleClass().add("panel");
+        HBox.setHgrow(panel, Priority.ALWAYS);
+        return panel;
+    }
+
+    /**
+     * Sets up the table columns. Column widths follow the window width, and
+     * the status column shows a coloured badge.
      */
     private void buildTable() {
         TableColumn<Book, String> idColumn = new TableColumn<>("ID");
         idColumn.setCellValueFactory(cell -> new SimpleStringProperty(cell.getValue().getId()));
-        idColumn.setPrefWidth(110);
+        idColumn.prefWidthProperty().bind(table.widthProperty().multiply(0.13));
 
         TableColumn<Book, String> titleColumn = new TableColumn<>("Title");
         titleColumn.setCellValueFactory(cell -> new SimpleStringProperty(cell.getValue().getTitle()));
-        titleColumn.setPrefWidth(320);
+        titleColumn.prefWidthProperty().bind(table.widthProperty().multiply(0.37));
 
         TableColumn<Book, String> authorColumn = new TableColumn<>("Author");
         authorColumn.setCellValueFactory(cell -> new SimpleStringProperty(cell.getValue().getAuthor()));
-        authorColumn.setPrefWidth(220);
+        authorColumn.prefWidthProperty().bind(table.widthProperty().multiply(0.28));
 
-        TableColumn<Book, String> statusColumn = new TableColumn<>("Status");
-        statusColumn.setCellValueFactory(cell -> new SimpleStringProperty(cell.getValue().getStatus().getLabel()));
-        statusColumn.setPrefWidth(120);
+        TableColumn<Book, BookStatus> statusColumn = new TableColumn<>("Status");
+        statusColumn.setCellValueFactory(cell -> new SimpleObjectProperty<>(cell.getValue().getStatus()));
+        statusColumn.prefWidthProperty().bind(table.widthProperty().multiply(0.17));
+        statusColumn.setCellFactory(column -> new TableCell<Book, BookStatus>() {
+            @Override
+            protected void updateItem(BookStatus status, boolean empty) {
+                super.updateItem(status, empty);
+                if (empty || status == null) {
+                    setText(null);
+                    setGraphic(null);
+                } else {
+                    Label badge = new Label(status.getLabel());
+                    badge.getStyleClass().addAll("badge", "badge-" + status.name().toLowerCase());
+                    setText(null);
+                    setGraphic(badge);
+                }
+            }
+        });
 
         table.getColumns().add(idColumn);
         table.getColumns().add(titleColumn);
         table.getColumns().add(authorColumn);
         table.getColumns().add(statusColumn);
-        table.setPlaceholder(new Label("No books in the library."));
     }
 
     /**
-     * Connects the buttons and the table selection to their handlers.
+     * Creates the bar at the bottom of the window that shows messages.
+     *
+     * @return the status bar
+     */
+    private HBox buildStatusBar() {
+        messageLabel.getStyleClass().add("status-text");
+        HBox bar = new HBox(messageLabel);
+        bar.getStyleClass().add("status-bar");
+        return bar;
+    }
+
+    // ------------------------------------------------------------------
+    // Reacting to the user
+    // ------------------------------------------------------------------
+
+    /**
+     * Connects the buttons, the search tools and the table selection to their
+     * handlers.
      */
     private void connectActions() {
         addButton.setOnAction(event -> onAdd());
         updateButton.setOnAction(event -> onUpdate());
-        deleteButton.setOnAction(event -> onDelete());
         statusButton.setOnAction(event -> onSetStatus());
+        deleteButton.setOnAction(event -> onDelete());
         clearButton.setOnAction(event -> clearForm());
         viewAllButton.setOnAction(event -> onViewAll());
+
+        // Pressing Enter in the last field adds the book.
+        authorField.setOnAction(event -> onAdd());
+
+        // Typing in the search box or changing the filter narrows the table.
+        searchField.textProperty().addListener((observable, oldText, newText) -> refreshTable());
+        filterBox.setOnAction(event -> refreshTable());
 
         // Clicking a row copies that book into the form.
         table.getSelectionModel().selectedItemProperty().addListener((observable, oldBook, newBook) -> {
@@ -183,7 +342,7 @@ public class MainView {
     private void onAdd() {
         try {
             Book book = service.addBook(idField.getText(), titleField.getText(), authorField.getText());
-            refreshTable();
+            refreshAll();
             clearForm();
             messageLabel.setText("Added \"" + book.getTitle() + "\" (" + book.getId() + "). "
                     + describeLibrary());
@@ -199,8 +358,22 @@ public class MainView {
     private void onUpdate() {
         try {
             Book book = service.updateBook(idField.getText(), titleField.getText(), authorField.getText());
-            refreshTable();
+            refreshAll();
             messageLabel.setText("Updated book " + book.getId() + ".");
+        } catch (LibraryException error) {
+            showError(error);
+        }
+    }
+
+    /**
+     * Handles the Set status button: gives the book whose ID is typed in the
+     * form the status chosen in the combo box.
+     */
+    private void onSetStatus() {
+        try {
+            Book book = service.setStatus(idField.getText(), statusBox.getValue());
+            refreshAll();
+            messageLabel.setText("Book " + book.getId() + " is now " + book.getStatus() + ".");
         } catch (LibraryException error) {
             showError(error);
         }
@@ -222,7 +395,7 @@ public class MainView {
 
             if (confirm.showAndWait().orElse(ButtonType.NO) == ButtonType.YES) {
                 service.deleteBook(book.getId());
-                refreshTable();
+                refreshAll();
                 clearForm();
                 messageLabel.setText("Deleted book " + book.getId() + ". " + describeLibrary());
             }
@@ -232,32 +405,14 @@ public class MainView {
     }
 
     /**
-     * Handles the Set status button: gives the book whose ID is typed in the
-     * form the status chosen in the combo box.
-     */
-    private void onSetStatus() {
-        try {
-            Book book = service.setStatus(idField.getText(), statusBox.getValue());
-            refreshTable();
-            messageLabel.setText("Book " + book.getId() + " is now " + book.getStatus() + ".");
-        } catch (LibraryException error) {
-            showError(error);
-        }
-    }
-
-    /**
-     * Handles the View all button: reloads the table and, if the library has
-     * no books, tells the user so.
+     * Handles the View all button: removes the search text and the status
+     * filter so every book is shown.
      */
     private void onViewAll() {
+        searchField.clear();
+        filterBox.setValue(ALL_STATUSES);
         refreshTable();
         messageLabel.setText(describeLibrary());
-        if (service.getBookCount() == 0) {
-            Alert info = new Alert(Alert.AlertType.INFORMATION, "The library is empty. There are no books to show.");
-            info.setTitle("Empty library");
-            info.setHeaderText(null);
-            info.showAndWait();
-        }
     }
 
     /**
@@ -284,11 +439,55 @@ public class MainView {
         messageLabel.setText("Error: " + error.getMessage());
     }
 
+    // ------------------------------------------------------------------
+    // Refreshing what is shown
+    // ------------------------------------------------------------------
+
     /**
-     * Reloads the table rows from the library service.
+     * Refreshes both the table and the summary cards.
+     */
+    private void refreshAll() {
+        refreshTable();
+        refreshCards();
+    }
+
+    /**
+     * Reloads the table rows using the current search text and status filter.
      */
     private void refreshTable() {
-        table.setItems(FXCollections.observableArrayList(service.getAllBooks()));
+        List<Book> shown = service.searchBooks(searchField.getText(), selectedFilterStatus());
+        table.setItems(FXCollections.observableArrayList(shown));
+
+        if (service.getBookCount() == 0) {
+            table.setPlaceholder(new Label("No books yet. Add your first book using the form."));
+        } else {
+            table.setPlaceholder(new Label("No books match your search."));
+        }
+    }
+
+    /**
+     * Updates the four numbers in the summary cards.
+     */
+    private void refreshCards() {
+        totalValue.setText(String.valueOf(service.getBookCount()));
+        availableValue.setText(String.valueOf(service.countByStatus(BookStatus.AVAILABLE)));
+        issuedValue.setText(String.valueOf(service.countByStatus(BookStatus.ISSUED)));
+        reservedValue.setText(String.valueOf(service.countByStatus(BookStatus.RESERVED)));
+    }
+
+    /**
+     * Converts the choice in the filter box to a status.
+     *
+     * @return the chosen status, or {@code null} if "All statuses" is chosen
+     */
+    private BookStatus selectedFilterStatus() {
+        String choice = filterBox.getValue();
+        for (BookStatus status : BookStatus.values()) {
+            if (status.getLabel().equals(choice)) {
+                return status;
+            }
+        }
+        return null;
     }
 
     /**
@@ -301,6 +500,6 @@ public class MainView {
         if (count == 0) {
             return "The library is empty. Add a book to get started.";
         }
-        return "Showing " + count + (count == 1 ? " book." : " books.");
+        return "The library has " + count + (count == 1 ? " book." : " books.");
     }
 }

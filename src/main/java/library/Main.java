@@ -6,13 +6,15 @@ import javafx.stage.Stage;
 import library.service.LibraryService;
 import library.ui.MainView;
 
+import java.net.URL;
+
 /**
  * JavaFX entry point of the Library Book Management System.
  *
  * <p>It creates the {@link LibraryService} that holds the books, builds the
- * main window around it and shows it.</p>
+ * main window around it, applies the stylesheet and shows it.</p>
  *
- * @author Naseem, Amaan, Waseem
+ * @author Muhammad Rehan Sabir
  */
 public class Main extends Application {
 
@@ -34,8 +36,16 @@ public class Main extends Application {
         LibraryService service = new LibraryService();
         MainView view = new MainView(service);
 
+        Scene scene = new Scene(view.getRoot(), 1100, 700);
+        URL stylesheet = getClass().getResource("/styles.css");
+        if (stylesheet != null) {
+            scene.getStylesheets().add(stylesheet.toExternalForm());
+        }
+
         stage.setTitle("Library Book Management System");
-        stage.setScene(new Scene(view.getRoot(), 900, 600));
+        stage.setMinWidth(960);
+        stage.setMinHeight(620);
+        stage.setScene(scene);
         stage.show();
     }
 
