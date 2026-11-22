@@ -19,7 +19,7 @@ import java.util.Map;
  * in the order they were added. The user interface never touches the map
  * directly; it only calls the methods of this class.</p>
  *
- * @author Muhammad Rehan Sabir
+ * @author Naseem, Amaan, Waseem
  */
 public class LibraryService {
 

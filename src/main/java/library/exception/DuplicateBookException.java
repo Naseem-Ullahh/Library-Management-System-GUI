@@ -3,7 +3,7 @@ package library.exception;
 /**
  * Thrown when a book is added with an ID that already exists in the library.
  *
- * @author Muhammad Rehan Sabir
+ * @author Naseem, Amaan, Waseem
  */
 public class DuplicateBookException extends LibraryException {
 

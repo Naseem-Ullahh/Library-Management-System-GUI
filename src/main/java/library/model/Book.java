@@ -8,7 +8,7 @@ package library.model;
  * duplicate checks) are enforced by
  * {@link library.service.LibraryService}.</p>
  *
- * @author Muhammad Rehan Sabir
+ * @author Naseem, Amaan, Waseem
  */
 public class Book {
 

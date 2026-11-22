@@ -6,7 +6,7 @@ package library.model;
  * <p>Each constant carries a human-readable label that is shown in the
  * user interface.</p>
  *
- * @author Muhammad Rehan Sabir
+ * @author Naseem, Amaan, Waseem
  */
 public enum BookStatus {
 

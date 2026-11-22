@@ -4,7 +4,7 @@ package library.exception;
  * Thrown when user input is not acceptable, for example an empty title,
  * an empty author or an empty book ID.
  *
- * @author Muhammad Rehan Sabir
+ * @author Naseem, Amaan, Waseem
  */
 public class ValidationException extends LibraryException {
 

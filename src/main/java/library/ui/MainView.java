@@ -29,7 +29,7 @@ import library.service.LibraryService;
  * the screen and reacts to clicks; every rule (validation, duplicate check)
  * lives in {@link LibraryService}.</p>
  *
- * @author Muhammad Rehan Sabir
+ * @author Naseem, Amaan, Waseem
  */
 public class MainView {
 

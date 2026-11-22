@@ -4,7 +4,7 @@ package library.exception;
  * Thrown when an operation refers to a book ID that is not in the library,
  * for example updating or deleting a book that does not exist.
  *
- * @author Muhammad Rehan Sabir
+ * @author Naseem, Amaan, Waseem
  */
 public class BookNotFoundException extends LibraryException {
 

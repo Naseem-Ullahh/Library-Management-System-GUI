@@ -12,7 +12,7 @@ import library.ui.MainView;
  * <p>It creates the {@link LibraryService} that holds the books, builds the
  * main window around it and shows it.</p>
  *
- * @author Muhammad Rehan Sabir
+ * @author Naseem, Amaan, Waseem
  */
 public class Main extends Application {
 

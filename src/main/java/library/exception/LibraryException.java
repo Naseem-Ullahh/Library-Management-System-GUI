@@ -6,7 +6,7 @@ package library.exception;
  * <p>It is a checked exception, so callers are forced to handle it. The user
  * interface catches it and shows {@link #getMessage()} in an error dialog.</p>
  *
- * @author Muhammad Rehan Sabir
+ * @author Naseem, Amaan, Waseem
  */
 public class LibraryException extends Exception {
 

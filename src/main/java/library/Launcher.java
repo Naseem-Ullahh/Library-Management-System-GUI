@@ -9,7 +9,7 @@ package library;
  * {@code Application}, so it can be run directly (for example with the Run
  * button in Visual Studio Code) and simply hands over to {@link Main}.</p>
  *
- * @author Muhammad Rehan Sabir
+ * @author Naseem, Amaan, Waseem
  */
 public class Launcher {
 
